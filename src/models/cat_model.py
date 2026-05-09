@@ -1,16 +1,13 @@
 # ============================================================
 # 阶段 4 — CatBoost 单 fold 训练
 # ============================================================
-import numpy as np
 from catboost import CatBoostClassifier
 from utils import accuracy
 
 
-def train_cat_fold(X_tr, y_tr, X_val, y_val, X_test, params, cat_features, seed):
+def train_cat_fold(X_tr, y_tr, X_val, y_val, X_test, params, cat_features):
     """在单个 fold 上训练 CatBoost，cat_features 指定类别列名/索引。"""
     params = params.copy()
-    # random_seed 已由 _get_model_params 按 seed*10+fold_idx 注入，此处不覆盖
-
     model = CatBoostClassifier(**params)
     model.fit(
         X_tr, y_tr,
