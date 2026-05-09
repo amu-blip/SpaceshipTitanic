@@ -1,16 +1,13 @@
 # ============================================================
 # 阶段 4 — LightGBM 单 fold 训练
 # ============================================================
-import numpy as np
 import lightgbm as lgb
 from utils import accuracy
 
 
-def train_lgb_fold(X_tr, y_tr, X_val, y_val, X_test, params, cat_features, seed):
+def train_lgb_fold(X_tr, y_tr, X_val, y_val, X_test, params, cat_features):
     """在单个 fold 上训练 LightGBM，返回 val_pred, test_pred, model, score。"""
     params = params.copy()
-    # random_state 已由 _get_model_params 按 seed*10+fold_idx 注入，此处不覆盖
-
     callbacks = [lgb.early_stopping(100), lgb.log_evaluation(0)]
 
     dtrain = lgb.Dataset(X_tr, y_tr, categorical_feature=cat_features)

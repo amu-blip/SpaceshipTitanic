@@ -1,16 +1,13 @@
 # ============================================================
 # 阶段 4 — XGBoost 单 fold 训练
 # ============================================================
-import numpy as np
 import xgboost as xgb
 from utils import accuracy
 
 
-def train_xgb_fold(X_tr, y_tr, X_val, y_val, X_test, params, seed):
+def train_xgb_fold(X_tr, y_tr, X_val, y_val, X_test, params):
     """在单个 fold 上训练 XGBoost，使用 enable_categorical 原生类别支持。"""
     params = params.copy()
-    # random_state 已由 _get_model_params 按 seed*10+fold_idx 注入，此处不覆盖
-
     dtrain = xgb.DMatrix(X_tr, y_tr, enable_categorical=True)
     dval = xgb.DMatrix(X_val, y_val, enable_categorical=True)
     dtest = xgb.DMatrix(X_test, enable_categorical=True)

@@ -193,3 +193,66 @@ oof_preds = oof_preds_sum / len(seeds)
 2. **Stacking**：用 LogisticRegression 对 3 组 OOF 概率做元学习，可补充少量强特征（CryoSleep、TotalSpend）
 3. **GroupKFold 重评**：用 GroupKFold 对所有模型重新评估，确认 CV 分数在防止组泄漏后仍达标
 4. **阈值优化**：在 OOF 上搜索 0.35–0.65 最优阈值（对手方案关键技巧）
+
+---
+
+## 11. 阶段四补全与调试记录
+
+本轮补全将阶段四训练入口从临时脚本式参数解析升级为可复现实验入口，覆盖策略文档中要求的 StratifiedKFold / GroupKFold 双验证方案、三模型训练、OOF/测试集预测保存和 fold 级指标留档。
+
+### 11.1 训练入口补全
+
+- CLI 改为 `argparse`，支持：
+  - `--models lgb,xgb,cat`
+  - `--cv stratified|group`
+  - `--seeds 42,2024`
+  - `--folds 5`
+  - `--feature-groups base,id,cabin,...`
+- 增加参数校验：非法模型名、非法 CV 方案、空 seed、`folds < 2` 会立即报错。
+- 增加特征组校验：传入不存在的 feature group 时直接报错；配置中暂未产出的特征会以 warning 打印并跳过。
+- `run_cv()` 现在返回每个实验的摘要，便于 notebook 或后续阶段直接复用。
+
+### 11.2 CV 与随机种子修复
+
+- 保留阶段四主方案：`StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)`。
+- 补全最终评估方案：`GroupKFold(n_splits=5)`，可通过 `--cv group` 运行，避免同一 `GroupId` 同时进入 train/validation。
+- 每个 `seed/fold` 使用独立 `model_seed = seed * 100 + fold_idx` 注入模型参数，避免不同 fold 使用完全相同的模型随机态。
+- 保留并强化多 seed OOF 平均逻辑：每个 seed 的 validation 预测先累加，最终除以 seed 数量，避免后一个 seed 覆盖前一个 seed。
+
+### 11.3 指标与产物补全
+
+除原有 OOF 与测试集预测外，阶段四现在额外保存：
+
+| 输出目录 | 内容 |
+|---------|------|
+| `outputs/oof/` | 每个实验的 OOF 概率 |
+| `outputs/preds/` | 每个实验的测试集概率 |
+| `outputs/metrics/` | fold 级分数 CSV 与实验 summary JSON |
+
+fold 级指标包含：模型名、CV 方案、seed、model_seed、fold、validation 样本数、accuracy、best_iteration。summary JSON 包含 OOF accuracy、CV mean/std、特征组、特征数量和输出文件路径。
+
+### 11.4 模型配置补全
+
+- XGBoost 默认参数补上 `tree_method='hist'`，与策略文档阶段四要求一致。
+- LightGBM / XGBoost / CatBoost 单 fold 函数移除未使用的 `numpy` 导入和冗余 `seed` 参数，模型随机性统一由 `train.py` 注入后的参数控制。
+- `save_oof()` 与 `save_preds()` 现在返回保存路径，便于训练摘要和 metrics JSON 记录完整产物链路。
+
+### 11.5 运行方式（补全后）
+
+```bash
+cd src
+
+# 单模型 StratifiedKFold
+python train.py --models lgb --seeds 42,2024 --folds 5 --cv stratified
+
+# 三模型 StratifiedKFold（阶段四主结果）
+python train.py --models lgb,xgb,cat --seeds 42,2024 --folds 5 --cv stratified
+
+# GroupKFold 最终评估
+python train.py --models lgb,xgb,cat --seeds 42,2024 --folds 5 --cv group
+
+# 只跑部分特征组做消融
+python train.py --models lgb --feature-groups base,id,cabin,spend --seeds 42 --folds 5 --cv stratified
+```
+
+> 环境说明：当前容器默认 Python 3.14 环境未安装 `numpy/pandas/scikit-learn/lightgbm/xgboost/catboost`，且网络访问 PyPI 失败，因此本轮完成了静态语法检查与代码路径审查；完整训练需先按 `requirements.txt` 安装依赖后运行上述命令。

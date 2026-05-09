@@ -25,6 +25,7 @@ def save_oof(df_oof, exp_name):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     df_oof.to_csv(path, index=False)
     print(f'[save] OOF → {path} (shape={df_oof.shape})')
+    return path
 
 
 def save_preds(passenger_ids, proba, exp_name):
@@ -34,6 +35,7 @@ def save_preds(passenger_ids, proba, exp_name):
     df = pd.DataFrame({'PassengerId': passenger_ids, 'Transported_Prob': proba})
     df.to_csv(path, index=False)
     print(f'[save] preds → {path} (shape={df.shape})')
+    return path
 
 
 def save_submission(passenger_ids, proba, threshold, exp_name):

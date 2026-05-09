@@ -71,6 +71,7 @@ XGB_PARAMS = {
     'colsample_bytree': 0.8,
     'min_child_weight': 3,
     'reg_lambda': 1.0,
+    'tree_method': 'hist',
     'verbosity': 0,
     'random_state': SEED,
 }
